@@ -4,11 +4,54 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Merhaba Dünya</title>
+  <title>Anasayfa</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-  <h1>İlk Web Projem 🎉</h1>
+  <nav>
+    <a href="index.html">Anasayfa</a> |
+    <a href="login.html">Giriş Yap</a> |
+    <a href="signup.html">Kayıt Ol</a> |
+    <a href="profile.html">Profil</a>
+  </nav>
+  <div class="container">
+    <h1>Crypto Order Book</h1>
+    <table class="orderbook-table">
+      <thead>
+        <tr>
+          <th>Fiyat (USDT)</th>
+          <th>Miktar (BTC)</th>
+          <th>Tip</th>
+        </tr>
+      </thead>
+      <tbody id="orderbook-body">
+        <!-- JS ile doldurulacak -->
+      </tbody>
+    </table>
+    <h2>Fiyat Grafiği (Demo)</h2>
+    <canvas id="priceChart" width="100%" height="180"></canvas>
+  </div>
+  <script src="main.js"></script>
+  <script>
+    // Basit demo grafik (canvas)
+    const canvas = document.getElementById('priceChart');
+    if (canvas && canvas.getContext) {
+      const ctx = canvas.getContext('2d');
+      const prices = [64100, 64150, 64200, 64180, 64220, 64250, 64280];
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#00c896';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i < prices.length; i++) {
+        const x = (i / (prices.length - 1)) * (canvas.width - 20) + 10;
+        const y = canvas.height - ((prices[i] - 64100) / 200) * (canvas.height - 40) - 20;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  </script>
 </body>
 
 </html>
