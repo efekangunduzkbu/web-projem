@@ -166,8 +166,9 @@ button:hover {
 
 .order-books-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  width: 100%;
 }
 
 .coin-controls {
@@ -206,7 +207,7 @@ button:hover {
 
 .notifications-box {
   position: sticky;
-  top: 20px;
+  top: 32px;
   width: 320px;
   flex-shrink: 0;
   max-height: 90vh;
@@ -214,6 +215,7 @@ button:hover {
   background-color: #2d2d2d;
   border-radius: 10px;
   padding: 10px;
+  z-index: 10;
 }
 
 .notification {
@@ -231,6 +233,93 @@ button:hover {
   margin-top: 4px;
 }
 
+.main-flex-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+  max-width: 100vw;
+  padding: 0 16px;
+}
+
+.order-book-section {
+  background: #23272f;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px #0004;
+  padding: 10px 5px 5px 5px;
+  margin-bottom: 0;
+  min-width: 200px;
+  min-height: 200px;
+  max-width: 100vw;
+  max-height: 90vh;
+  overflow: auto;
+  resize: both;
+  font-size: clamp(0.7rem, 1vw, 0.95rem);
+}
+
+.order-book-section h2,
+.order-book-section h3 {
+  font-size: clamp(0.9rem, 1.3vw, 1.1rem);
+  margin: 0.3em 0 0.3em 0;
+}
+
+.order-book-section .coin-controls {
+  gap: 0.3em;
+}
+
+.order-book-section .btn-remove,
+.order-book-section .btn-toggle-refresh {
+  font-size: clamp(0.7rem, 1vw, 0.9rem);
+  padding: 0.15em 0.5em;
+}
+
+.order-book-section .orderbook-table {
+  font-size: clamp(0.6rem, 0.9vw, 0.8rem);
+}
+
+.order-book-section th,
+.order-book-section td {
+  padding: 0.15em 0.3em;
+  word-break: break-word;
+  text-overflow: ellipsis;
+  max-width: 5ch;
+}
+
+.order-book-section .order-book-table-container {
+  max-height: 40vh;
+}
+
+.order-book-section .order-book {
+  margin-bottom: 0.5em;
+}
+
+.order-book-section h2 {
+  cursor: move;
+}
+
+.order-book-section.dragging {
+  opacity: 0.9;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+body.drag-active {
+  user-select: none;
+}
+
+@media (max-width: 1100px) {
+  .main-flex-wrapper {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .notifications-box {
+    width: 100%;
+    max-width: 100vw;
+    position: static;
+    margin-top: 24px;
+  }
+}
+
 @media (max-width: 700px) {
   .container {
     padding: 12px;
@@ -239,10 +328,87 @@ button:hover {
   nav {
     font-size: 15px;
   }
+
+  .order-books-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .notifications-box {
+    width: 100%;
+    max-width: 100vw;
+    position: static;
+    margin-top: 24px;
+  }
 }
 
 @media (max-width: 900px) {
   .orderbook-container {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 600px) {
+  .order-book-section {
+    font-size: 0.8rem;
+  }
+
+  .order-book-section h2,
+  .order-book-section h3 {
+    font-size: 1rem;
+  }
+
+  .order-book-section .btn-remove,
+  .order-book-section .btn-toggle-refresh {
+    font-size: 0.8rem;
+    padding: 0.2em 0.5em;
+  }
+
+  .order-book-section .orderbook-table {
+    font-size: 0.7rem;
+  }
+}
+
+.controls-container input,
+.controls-container button {
+  font-size: 0.9rem;
+  padding: 0.2em 0.5em;
+  min-width: 0;
+}
+
+.order-book-section .orderbook-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  background-color: #444;
+  border-radius: 8px;
+  padding: 2px;
+  margin-top: 0.5em;
+}
+
+.order-book-section .order-book {
+  background-color: #23272f;
+  padding: 0.2em 0.5em;
+  border-radius: 6px;
+}
+
+.btn-more {
+  width: 100%;
+  background: #4a4e58;
+  color: #eaecef;
+  border: none;
+  padding: 4px 0;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background 0.2s;
+}
+
+.btn-more:hover {
+  background: #5a5e68;
+}
+
+.orderbook-table tfoot td {
+  padding: 0;
+  border: none;
 }

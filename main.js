@@ -24,7 +24,14 @@ function addCoin() {
   const prefix = coinSymbol.split('-')[0].toLowerCase();
   const minTotal = parseFloat(document.getElementById('minTotalInput').value) || 0;
 
-  coinParams[prefix] = { coinSymbol, minTotal };
+  coinParams[prefix] = {
+    coinSymbol,
+    minTotal,
+    displayCountBids: 50, // Initial display count
+    displayCountAsks: 50,
+    fullBids: [],
+    fullAsks: []
+  };
 
   if (document.getElementById(`${prefix}OrderBook`)) {
     alert(`${coinSymbol} zaten ekli.`);
@@ -33,6 +40,7 @@ function addCoin() {
 
   const orderBookSection = document.createElement('div');
   orderBookSection.id = `${prefix}OrderBook`;
+  orderBookSection.className = 'order-book-section';
   orderBookSection.innerHTML = `
     <h2 class="text-center">${coinSymbol}</h2>
     <div class="coin-controls">
@@ -45,8 +53,9 @@ function addCoin() {
         <h3 class="bids">Alış Emirleri</h3>
         <div class="order-book-table-container">
           <table class="orderbook-table">
-            <thead><tr><th>Fiyat</th><th>Sayaç</th><th>Miktar</th><th>Toplam</th></tr></thead>
+            <thead><tr><th>Fiyat</th><th>S</th><th>Miktar</th><th>Toplam</th></tr></thead>
             <tbody id="${prefix}BidsTableBody"><tr><td colspan="4">Yükleniyor...</td></tr></tbody>
+            <tfoot><tr><td colspan="4"><button class="btn-more" id="${prefix}BidsMoreBtn" onclick="showMore('${prefix}', 'bids')">Daha Fazla</button></td></tr></tfoot>
           </table>
         </div>
       </div>
@@ -54,14 +63,16 @@ function addCoin() {
         <h3 class="asks">Satış Emirleri</h3>
         <div class="order-book-table-container">
           <table class="orderbook-table">
-            <thead><tr><th>Fiyat</th><th>Sayaç</th><th>Miktar</th><th>Toplam</th></tr></thead>
+            <thead><tr><th>Fiyat</th><th>S</th><th>Miktar</th><th>Toplam</th></tr></thead>
             <tbody id="${prefix}AsksTableBody"><tr><td colspan="4">Yükleniyor...</td></tr></tbody>
+            <tfoot><tr><td colspan="4"><button class="btn-more" id="${prefix}AsksMoreBtn" onclick="showMore('${prefix}', 'asks')">Daha Fazla</button></td></tr></tfoot>
           </table>
         </div>
       </div>
     </div>
   `;
   orderBooksContainer.appendChild(orderBookSection);
+  makeDraggable(orderBookSection);
 
   fetchOrderBook(coinSymbol, prefix, minTotal);
   autoRefreshStates[prefix] = false;
@@ -75,7 +86,15 @@ async function fetchOrderBook(pair, prefix, minTotal) {
     const data = await response.json();
     if (!data || !data.bids || !data.asks) throw new Error('Geçersiz API verisi');
 
-    updateOrderBook(data, prefix, minTotal);
+    // Store the full data
+    coinParams[prefix].fullBids = data.bids;
+    coinParams[prefix].fullAsks = data.asks;
+
+    // Reset display counts on new fetch
+    coinParams[prefix].displayCountBids = 50;
+    coinParams[prefix].displayCountAsks = 50;
+
+    updateOrderBook(prefix, minTotal);
     const now = new Date();
     document.getElementById(`${prefix}LastUpdate`).textContent = `Güncelleme: ${now.toLocaleTimeString()}`;
   } catch (error) {
@@ -86,50 +105,75 @@ async function fetchOrderBook(pair, prefix, minTotal) {
   }
 }
 
-function updateOrderBook(data, prefix, minTotal) {
+function updateOrderBook(prefix, minTotal) {
   if (!previousOrders[prefix]) {
     previousOrders[prefix] = { bids: new Map(), asks: new Map() };
     orderCounters[prefix] = { bids: new Map(), asks: new Map() };
   }
 
-  const processOrders = (orders, type) => {
-    return orders
-      .filter(order => (parseFloat(order[0]) * parseFloat(order[1])) >= minTotal)
-      .slice(0, 120)
-      .map(order => {
-        const price = parseFloat(order[0]);
-        const size = parseFloat(order[1]);
-        const total = price * size;
-        const orderKey = price.toFixed(4);
+  renderTable(prefix, 'bids', minTotal);
+  renderTable(prefix, 'asks', minTotal);
+}
 
-        const previousSize = previousOrders[prefix][type].get(orderKey) || 0;
-        previousOrders[prefix][type].set(orderKey, size);
+function renderTable(prefix, type, minTotal) {
+  const tableBodyId = type === 'bids' ? `${prefix}BidsTableBody` : `${prefix}AsksTableBody`;
+  const moreBtnId = type === 'bids' ? `${prefix}BidsMoreBtn` : `${prefix}AsksMoreBtn`;
+  const tableBody = document.getElementById(tableBodyId);
+  const moreBtn = document.getElementById(moreBtnId);
 
-        let counter = orderCounters[prefix][type].get(orderKey) || 0;
-        if (size < previousSize) {
-          if (counter >= 100) {
-            addNotification(`${prefix.toUpperCase()} | Fiyat: ${orderKey} | Sayaç (${counter}) sıfırlandı.`);
-          }
-          counter = 0;
-        } else if (size >= previousSize) {
-          counter++;
+  const orders = type === 'bids' ? coinParams[prefix].fullBids : coinParams[prefix].fullAsks;
+  const displayCount = type === 'bids' ? coinParams[prefix].displayCountBids : coinParams[prefix].displayCountAsks;
+
+  if (!orders) return;
+
+  const html = orders
+    .filter(order => (parseFloat(order[0]) * parseFloat(order[1])) >= minTotal)
+    .slice(0, displayCount)
+    .map(order => {
+      const price = parseFloat(order[0]);
+      const size = parseFloat(order[1]);
+      const total = price * size;
+      const orderKey = price.toFixed(4);
+
+      const previousSize = previousOrders[prefix][type].get(orderKey) || 0;
+      previousOrders[prefix][type].set(orderKey, size);
+
+      let counter = orderCounters[prefix][type].get(orderKey) || 0;
+      if (size < previousSize) {
+        if (counter >= 100) {
+          addNotification(`${prefix.toUpperCase()} | Fiyat: ${orderKey} | Sayaç (${counter}) sıfırlandı.`);
         }
-        orderCounters[prefix][type].set(orderKey, counter);
+        counter = 0;
+      } else if (size >= previousSize) {
+        counter++;
+      }
+      orderCounters[prefix][type].set(orderKey, counter);
 
-        return `<tr>
-                  <td>${price.toFixed(4)}</td>
-                  <td>${counter}</td>
-                  <td>${size.toFixed(4)}</td>
-                  <td>${total.toFixed(2)}</td>
-                </tr>`;
-      }).join('');
-  };
+      return `<tr>
+                <td>${price.toFixed(4)}</td>
+                <td>${counter}</td>
+                <td>${size.toFixed(1)}</td>
+                <td>${total.toFixed(0)}</td>
+              </tr>`;
+    }).join('');
 
-  const bidsHtml = processOrders(data.bids, 'bids');
-  document.getElementById(`${prefix}BidsTableBody`).innerHTML = bidsHtml || '<tr><td colspan="4">Emir yok</td></tr>';
+  tableBody.innerHTML = html || `<tr><td colspan="4">Emir yok</td></tr>`;
 
-  const asksHtml = processOrders(data.asks, 'asks');
-  document.getElementById(`${prefix}AsksTableBody`).innerHTML = asksHtml || '<tr><td colspan="4">Emir yok</td></tr>';
+  // Show/hide the 'More' button
+  if (displayCount >= orders.filter(order => (parseFloat(order[0]) * parseFloat(order[1])) >= minTotal).length) {
+    moreBtn.style.display = 'none';
+  } else {
+    moreBtn.style.display = 'block';
+  }
+}
+
+function showMore(prefix, type) {
+  if (type === 'bids') {
+    coinParams[prefix].displayCountBids += 50;
+  } else {
+    coinParams[prefix].displayCountAsks += 50;
+  }
+  renderTable(prefix, type, coinParams[prefix].minTotal);
 }
 
 function removeCoin(prefix) {
@@ -169,6 +213,48 @@ function addNotification(message) {
   notificationsContainer.insertBefore(notification, notificationsContainer.firstChild);
   while (notificationsContainer.children.length > 50) {
     notificationsContainer.removeChild(notificationsContainer.lastChild);
+  }
+}
+
+function makeDraggable(element) {
+  const dragHandle = element.querySelector('h2');
+  let isDragging = false;
+  let currentTranslateX = 0;
+  let currentTranslateY = 0;
+  let initialMouseX = 0;
+  let initialMouseY = 0;
+
+  dragHandle.addEventListener('mousedown', function (e) {
+    e.preventDefault();
+    const style = window.getComputedStyle(element);
+    const matrix = new DOMMatrixReadOnly(style.transform);
+    currentTranslateX = matrix.m41;
+    currentTranslateY = matrix.m42;
+    initialMouseX = e.clientX;
+    initialMouseY = e.clientY;
+    isDragging = true;
+    element.classList.add('dragging');
+    document.body.classList.add('drag-active');
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
+
+  function onMouseMove(e) {
+    if (!isDragging) return;
+    const dx = e.clientX - initialMouseX;
+    const dy = e.clientY - initialMouseY;
+    const newTranslateX = currentTranslateX + dx;
+    const newTranslateY = currentTranslateY + dy;
+    element.style.transform = `translate(${newTranslateX}px, ${newTranslateY}px)`;
+  }
+
+  function onMouseUp() {
+    if (!isDragging) return;
+    isDragging = false;
+    element.classList.remove('dragging');
+    document.body.classList.remove('drag-active');
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
   }
 }
 
