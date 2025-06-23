@@ -18,13 +18,16 @@ const orderCounters = {};
 
 function addCoin() {
   const coinInput = document.getElementById('coinInput');
+  const apiSelector = document.getElementById('apiSelector');
   const coinSymbol = coinInput.value.trim().toUpperCase();
   if (!coinSymbol) return;
 
-  const prefix = coinSymbol.split('-')[0].toLowerCase();
+  const selectedApi = apiSelector.value;
+  const prefix = `${selectedApi}-${coinSymbol.split('-')[0].toLowerCase()}`;
   const minTotal = parseFloat(document.getElementById('minTotalInput').value) || 0;
 
   coinParams[prefix] = {
+    api: selectedApi,
     coinSymbol,
     minTotal,
     displayCountBids: 50, // Initial display count
@@ -74,55 +77,80 @@ function addCoin() {
   orderBooksContainer.appendChild(orderBookSection);
   makeDraggable(orderBookSection);
 
-  fetchOrderBook(coinSymbol, prefix, minTotal);
+  fetchOrderBook(prefix, true);
   autoRefreshStates[prefix] = false;
   refreshIntervals[prefix] = null;
 }
 
-async function fetchOrderBook(pair, prefix, minTotal) {
+async function fetchOrderBook(prefix, resetDisplayCount = false) {
+  const params = coinParams[prefix];
+  if (!params) return;
+
+  const { api, coinSymbol, minTotal } = params;
+  let url;
+
   try {
-    const response = await fetch(`https://api.exchange.coinbase.com/products/${pair}/book?level=2`);
+    if (api === 'binance') {
+      const formattedPair = coinSymbol.replace('-', '').replace('/', ''); // BTC-USD -> BTCUSDT
+      url = `https://api.binance.us/api/v3/depth?symbol=${formattedPair}&limit=1000`;
+    } else { // Default to Coinbase
+      url = `https://api.exchange.coinbase.com/products/${coinSymbol}/book?level=2`;
+    }
+
+    const response = await fetch(url);
     if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
     const data = await response.json();
+
     if (!data || !data.bids || !data.asks) throw new Error('Geçersiz API verisi');
 
     // Store the full data
-    coinParams[prefix].fullBids = data.bids;
-    coinParams[prefix].fullAsks = data.asks;
+    params.fullBids = data.bids;
+    params.fullAsks = data.asks;
 
-    // Reset display counts on new fetch
-    coinParams[prefix].displayCountBids = 50;
-    coinParams[prefix].displayCountAsks = 50;
+    if (resetDisplayCount) {
+      params.displayCountBids = 50;
+      params.displayCountAsks = 50;
+    }
 
-    updateOrderBook(prefix, minTotal);
+    updateOrderBook(prefix);
     const now = new Date();
     document.getElementById(`${prefix}LastUpdate`).textContent = `Güncelleme: ${now.toLocaleTimeString()}`;
+
   } catch (error) {
-    console.error(`Fetch hatası (${pair}):`, error);
+    console.error(`Fetch hatası (${coinSymbol}):`, error);
     const errorHtml = `<tr><td colspan="4" class="text-center">${error.message}</td></tr>`;
-    document.getElementById(`${prefix}AsksTableBody`).innerHTML = errorHtml;
-    document.getElementById(`${prefix}BidsTableBody`).innerHTML = errorHtml;
+    const asksBody = document.getElementById(`${prefix}AsksTableBody`);
+    const bidsBody = document.getElementById(`${prefix}BidsTableBody`);
+    if (asksBody) asksBody.innerHTML = errorHtml;
+    if (bidsBody) bidsBody.innerHTML = errorHtml;
   }
 }
 
-function updateOrderBook(prefix, minTotal) {
+function updateOrderBook(prefix) {
+  const params = coinParams[prefix];
+  if (!params) return;
+
   if (!previousOrders[prefix]) {
     previousOrders[prefix] = { bids: new Map(), asks: new Map() };
     orderCounters[prefix] = { bids: new Map(), asks: new Map() };
   }
 
-  renderTable(prefix, 'bids', minTotal);
-  renderTable(prefix, 'asks', minTotal);
+  renderTable(prefix, 'bids');
+  renderTable(prefix, 'asks');
 }
 
-function renderTable(prefix, type, minTotal) {
+function renderTable(prefix, type) {
+  const params = coinParams[prefix];
+  if (!params) return;
+
+  const { minTotal } = params;
   const tableBodyId = type === 'bids' ? `${prefix}BidsTableBody` : `${prefix}AsksTableBody`;
   const moreBtnId = type === 'bids' ? `${prefix}BidsMoreBtn` : `${prefix}AsksMoreBtn`;
   const tableBody = document.getElementById(tableBodyId);
   const moreBtn = document.getElementById(moreBtnId);
 
-  const orders = type === 'bids' ? coinParams[prefix].fullBids : coinParams[prefix].fullAsks;
-  const displayCount = type === 'bids' ? coinParams[prefix].displayCountBids : coinParams[prefix].displayCountAsks;
+  const orders = type === 'bids' ? params.fullBids : params.fullAsks;
+  const displayCount = type === 'bids' ? params.displayCountBids : params.displayCountAsks;
 
   if (!orders) return;
 
@@ -168,12 +196,15 @@ function renderTable(prefix, type, minTotal) {
 }
 
 function showMore(prefix, type) {
+  const params = coinParams[prefix];
+  if (!params) return;
+
   if (type === 'bids') {
-    coinParams[prefix].displayCountBids += 50;
+    params.displayCountBids += 50;
   } else {
-    coinParams[prefix].displayCountAsks += 50;
+    params.displayCountAsks += 50;
   }
-  renderTable(prefix, type, coinParams[prefix].minTotal);
+  renderTable(prefix, type);
 }
 
 function removeCoin(prefix) {
@@ -190,6 +221,7 @@ function removeCoin(prefix) {
 function toggleAutoRefresh(prefix) {
   const button = document.getElementById(`${prefix}AutoRefreshBtn`);
   const params = coinParams[prefix];
+  if (!params) return;
 
   if (autoRefreshStates[prefix]) {
     clearInterval(refreshIntervals[prefix]);
@@ -197,7 +229,7 @@ function toggleAutoRefresh(prefix) {
     autoRefreshStates[prefix] = false;
   } else {
     refreshIntervals[prefix] = setInterval(() => {
-      fetchOrderBook(params.coinSymbol, prefix, params.minTotal);
+      fetchOrderBook(prefix, false);
     }, 5000);
     button.textContent = "Oto. Yenile: AÇIK";
     autoRefreshStates[prefix] = true;

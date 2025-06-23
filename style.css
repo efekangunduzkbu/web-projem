@@ -412,3 +412,13 @@ body.drag-active {
   padding: 0;
   border: none;
 }
+
+.controls-container select {
+  background: #181a20;
+  color: #eaecef;
+  border: none;
+  border-radius: 6px;
+  padding: 0.2em 0.5em;
+  font-size: 0.9rem;
+  cursor: pointer;
+}

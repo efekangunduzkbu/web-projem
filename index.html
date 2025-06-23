@@ -19,6 +19,10 @@
     <div class="main-content">
       <h1 class="text-center">Crypto Order Books</h1>
       <div class="controls-container">
+        <select id="apiSelector" title="API Kaynağını Seçin">
+          <option value="coinbase">Coinbase</option>
+          <option value="binance">Binance</option>
+        </select>
         <input type="text" id="coinInput" placeholder="Coin (örn: BTC-USD)">
         <input type="number" id="minTotalInput" placeholder="Min. Toplam Değer">
         <button class="btn-add" onclick="addCoin()">Coin Ekle</button>
